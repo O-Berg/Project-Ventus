@@ -1,32 +1,99 @@
-**Abstract:**
+<div align="center">
+  <img width="1200" alt="CanSat-Exploded-Transparent" src="https://github.com/user-attachments/assets/bc88a406-60a3-4ad0-b26c-2e08c98cd1ba" />
+</div>
 
-  CanSat, as defined by the European Space Agency (ESA), is an educational and experimental
-  satellite that is the size of a soda can, designed to provide hands-on learning opportunities for
-  students to simulate real-world space missions and gain practical experience in aerospace,
-  engineering and space technology. During the project, the CanSats are sent with rockets to an
-  altitude of approximately 1000 metres, after which they start collecting data to be transmitted
-  to the ground via radio in real-time. A CanSat project can be broken down into two major
-  parts: the primary and secondary mission. The aim of the primary mission is the same for all
-  teams and is to monitor air temperature and pressure and send these data back to the ground
-  via telemetry at least once per second; the secondary mission is what makes a CanSat unique
-  as the team decides upon the objective.
-  
-  This paper is as a consequence of a CanSat project whose secondary mission aims to
-  determine a wind profile, which is of scientific as well as practical importance when e.g.
-  rockets or weather balloons are to be launched; this involves collecting different types of data
-  at high frequencies and performing sensor fusion algorithms to minimise sensor bias. More
-  specifically, combining a GPS and barometers data with lower frequency as well as accuracy,
-  but without drifting data, and an IMU (Inertial Measurement Unit) with high frequency, high
-  accuracy but with drifting sensor data. The IMU consists of an accelerometer, a gyroscope,
-  and a magnetometer. Through an extended Kalman filter (EKF), these data are fused to
-  output accurate orientation data. By integrating linear acceleration, we can estimate the
-  position of the probe at any given point in time. However, a small error in the sensor data will
-  result in highly inaccurate position data over time when integrated, which is where the set of
-  lower frequency sensors comes into play; their data is used in a Kalman filter (KF) to correct
-  the IMU data in real-time. Our approach is different from most other implementations, as the
-  IMU at hand provides pre-filtered data. We utilise this fact and propose a _Successive Kalman
-  Filter_ (SKF), alternatively _S-Kalman Filter_, with several advantages, preserving
-  performance. This way, we achieve an accurate model of the trajectory of the probe, with
-  which we can calculate the force from winds at any given instance. By applying physical
-  formulas, we can derive a wind profile, i.e. the speed of the wind, as well as its direction, as a
-  function of altitude
+# Project Ventus
+
+**🥇 1st place — Swedish National CanSat Competition 2024**  
+**🥈 2nd place — Swedish National CanSat Competition 2023**
+
+CanSat is an ESA competition where student teams build a satellite the size of a soda can, launched to ~1 km by rocket to collect and transmit atmospheric data in real time. Project Ventus spans two years of participation in the Swedish national CanSat competition, culminating in a research paper proposing the **Successive Kalman Filter (SKF)**: a new approach to sensor fusion for wind profile estimation.
+
+---
+
+## How it works
+
+The probe is released from ~1 km altitude and descends under a parachute. During descent, two sensor systems are fused:
+
+| Sensor | Strength | Weakness |
+|---|---|---|
+| IMU (BNO085) — 100 Hz | High frequency, responsive | Velocity random walk accumulates over time |
+| GPS + Barometer — 10 Hz | No drift | Low frequency, lower accuracy |
+
+The **Successive Kalman Filter** uses pre-filtered IMU acceleration as a control input (`Bu` term) rather than a measurement, reducing the state vector from 9D to 6D and eliminating the constant-acceleration assumption between correction steps. GPS and barometer data correct horizontal and vertical position respectively in the update step.
+
+Wind velocity is then derived from the estimated probe velocity and the rotated acceleration vector:
+
+$$v_{\text{wind}} = \dot{x} + \sqrt{\frac{2ma}{C_d \rho A}}$$
+
+Parachute-induced oscillations (~1.62 Hz) are identified via FFT and removed with a notch filter in post-processing.
+
+---
+
+## Hardware
+
+<div align="center">
+  <img width="900" alt="CanSat-Exploded-white" src="https://github.com/user-attachments/assets/7c55091b-61e7-4d71-ba33-2a3032942c41" />
+</div>
+
+The probe is split into two 3D-printed PETG units — a **payload unit** and a **telemetry unit** — totalling 325 g, within ESA's 350 g limit.
+
+| Component | Role |
+|---|---|
+| Adafruit ESP32 Feather V2 | Main MCU (dual-core, 240 MHz) |
+| CEVA BNO085 | IMU — orientation + linear acceleration |
+| Bosch BMP390 | Barometer — altitude |
+| GlobalTop FGPMMOPA6H | GPS — horizontal position & velocity |
+| HopeRF RFM96W + Pro Trinket | LoRa telemetry to ground station |
+| Amphenol MC65F232A | NTC thermistor — air temperature |
+| SHT45 | Digital temperature & humidity |
+
+---
+
+## Software architecture
+
+<div align="center">
+  <img width="700" alt="CanSat-Architecture-white" src="https://github.com/user-attachments/assets/0521b890-5cc5-4ab9-81f1-d93df5062d57" />
+</div>
+
+**Core0 (200 Hz interrupt)** — IMU flip-flop: alternates between fetching quaternion and linear acceleration from BNO085 at 100 Hz each. Runs the SKF prediction step and computes wind velocity on every acceleration fetch.
+
+**Core1 (10 Hz interrupt)** — Reads BMP390, SHT45, and thermistor via SPI/I²C. Polls GPS asynchronously. Runs the SKF correction step: barometer on the vertical axis at 10 Hz, GPS on horizontal axes whenever a new fix arrives.
+
+Both cores write to separate SD card buffers (raw data at 100 Hz, mission data at 10 Hz) and package telemetry for the Pro Trinket → LoRa radio chain.
+
+---
+
+## Repository structure
+```
+Project-Ventus/
+├── Ventus/                     # ESP32 firmware (C++)
+│   └── ...                     # SKF, sensor drivers, dual-core architecture
+├── Base-station/               # Ground station code
+├── MissionDataPlot.py          # Mission data visualisation
+├── MissionHDPlot.py            # High-density mission data plot
+├── RawDataPlot.py              # Raw sensor data plot
+├── Wind_Data_Plotter.py        # Wind profile + notch filter
+├── QuatPosVis.py               # Quaternion & position visualisation
+├── Quaternion_Plot.py          # Quaternion time series
+├── Surface-Plot.py             # 3D surface wind plot
+└── My_Psi.py                   # Turbulence index computation
+```
+
+---
+
+## Results
+
+<div align="center">
+  <img width="600" alt="Wind-Pipeline-Vertical" src="https://github.com/user-attachments/assets/00a8a62e-8b68-4315-a32c-717beffbd3be" />
+</div>
+
+---
+
+## Project members
+
+**Figaro Stenlund · Olle Berg · William Bergklint**  
+Hvitfeldtska gymnasiet, Gothenburg
+2023/2024
+
+📄 [Read the full paper](https://github.com/O-Berg/Project-Ventus/releases/tag/paper)
