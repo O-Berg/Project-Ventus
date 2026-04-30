@@ -30,6 +30,26 @@ Parachute-induced oscillations (~1.62 Hz) are identified via FFT and removed wit
 
 ---
 
+## State estimation
+
+**State vector:**
+
+$$\hat{x} \triangleq \begin{pmatrix} x \\ y \\ z \\ \dot{x} \\ \dot{y} \\ \dot{z} \end{pmatrix}$$
+
+**State transition matrix:**
+
+$$\mathbf{F} \triangleq \begin{bmatrix} 1 & 0 & 0 & \Delta t & 0 & 0 \\ 0 & 1 & 0 & 0 & \Delta t & 0 \\ 0 & 0 & 1 & 0 & 0 & \Delta t \\ 0 & 0 & 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 0 & 1 & 0 \\ 0 & 0 & 0 & 0 & 0 & 1 \end{bmatrix}$$
+
+**Control input vector:**
+
+$$u \triangleq \begin{pmatrix} \ddot{x} \\ \ddot{y} \\ \ddot{z} \end{pmatrix}$$
+
+**Control input matrix:**
+
+$$\mathbf{B} \triangleq \begin{bmatrix} \Delta t^2/2 & 0 & 0 \\ 0 & \Delta t^2/2 & 0 \\ 0 & 0 & \Delta t^2/2 \\ \Delta t & 0 & 0 \\ 0 & \Delta t & 0 \\ 0 & 0 & \Delta t \end{bmatrix}$$
+
+---
+
 ## Hardware
 
 <div align="center">
