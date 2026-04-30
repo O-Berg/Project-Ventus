@@ -20,9 +20,7 @@ The probe is released from ~1 km altitude and descends under a parachute. During
 | IMU (BNO085) — 100 Hz | High frequency, responsive | Velocity random walk accumulates over time |
 | GPS + Barometer — 10 Hz | No drift | Low frequency, lower accuracy |
 
-The **Successive Kalman Filter** uses pre-filtered IMU acceleration as a control input (`Bu` term) rather than a measurement, reducing the state vector from 9D to 6D and eliminating the constant-acceleration assumption between correction steps. GPS and barometer data correct horizontal and vertical position respectively in the update step.
-
-Wind velocity is then derived from the estimated probe velocity and the rotated acceleration vector:
+Wind velocity is then derived from the estimated probe velocity and acceleration in the horizontal plane. 
 
 $$v_{\text{wind}} = \dot{x} + \sqrt{\frac{2ma}{C_d \rho A}}$$
 
@@ -32,21 +30,32 @@ Parachute-induced oscillations (~1.62 Hz) are identified via FFT and removed wit
 
 ## State estimation
 
-**State vector:**
+The **Successive Kalman Filter** uses pre-filtered IMU acceleration as a control input (`Bu` term) rather than a measurement, allowing the **Q** matrix to be derived directly instead of found through tuning. GPS and barometer data correct horizontal and vertical position, respectively in the update step. The filter follows the standard Kalman Filter equations. 
 
-$$\hat{x} \triangleq \begin{pmatrix} x \\ y \\ z \\ \dot{x} \\ \dot{y} \\ \dot{z} \end{pmatrix}$$
+**State vector:**
+<p align="center">
+  <img width="120" alt="state_vector" src="https://github.com/user-attachments/assets/1150c3b9-69c2-4d25-9004-e6eb23fe05dd" />
+</p>
 
 **State transition matrix:**
-
-$$\mathbf{F} \triangleq \begin{bmatrix} 1 & 0 & 0 & \Delta t & 0 & 0 \\ 0 & 1 & 0 & 0 & \Delta t & 0 \\ 0 & 0 & 1 & 0 & 0 & \Delta t \\ 0 & 0 & 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 0 & 1 & 0 \\ 0 & 0 & 0 & 0 & 0 & 1 \end{bmatrix}$$
+<p align="center">
+  <img width="260" alt="F_matrix" src="https://github.com/user-attachments/assets/1b413304-eaef-4cc7-80bf-14543273dbdf" />
+</p>
 
 **Control input vector:**
-
-$$u \triangleq \begin{pmatrix} \ddot{x} \\ \ddot{y} \\ \ddot{z} \end{pmatrix}$$
+<p align="center">
+  <img width="120" alt="control_input" src="https://github.com/user-attachments/assets/dcce634b-50b6-47b3-a255-b718ffc205b2" />
+</p>
 
 **Control input matrix:**
+<p align="center">
+  <img width="200" alt="B_matrix" src="https://github.com/user-attachments/assets/bda96a34-8efd-495a-9c79-a250c65d2e71" />
+</p>
 
-$$\mathbf{B} \triangleq \begin{bmatrix} \Delta t^2/2 & 0 & 0 \\ 0 & \Delta t^2/2 & 0 \\ 0 & 0 & \Delta t^2/2 \\ \Delta t & 0 & 0 \\ 0 & \Delta t & 0 \\ 0 & 0 & \Delta t \end{bmatrix}$$
+**Process noise covariance:**
+<p align="center">
+  <img width="500" alt="Q_matrix" src="https://github.com/user-attachments/assets/82b340a2-7af3-46df-a12c-91cc1a26af22" />
+</p>
 
 ---
 
